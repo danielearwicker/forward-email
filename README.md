@@ -48,9 +48,9 @@
 
 ## How It Works
 
-> Replace `niftylettuce@gmail.com` with the email address you want to forward emails to below:
+> <u>**IMPORTANT NOTE:**</u> Replace `niftylettuce@gmail.com` below with the email address you want to forward emails to:
 
-**1.** Set the following DNS MX records on your domain name:
+**1.** Set the following DNS MX records on your domain name (having both is required):
 
 | Name/Host/Alias    |  TTL | Record Type | Priority | Value/Answer/Destination |
 | ------------------ | :--: | ----------- | -------- | ------------------------ |
@@ -59,7 +59,7 @@
 
 **2.** Set (and customize) the following DNS TXT records on your domain name:
 
-> If you are forwarding all emails from your domain to a specific address:
+> If you are forwarding all emails from your domain, (`all@niftylettuce.com`, `hello@niftylettuce.com`, etc) to a specific address `niftylettuce@gmail.com`:
 
 | Name/Host/Alias    |  TTL | Record Type | Value/Answer/Destination               |
 | ------------------ | :--: | ----------- | -------------------------------------- |
@@ -77,7 +77,15 @@
 | ------------------ | :--: | ----------- | --------------------------------------------------------------------------- |
 | _@ or leave blank_ | 3600 | TXT         | `forward-email=hello:niftylettuce@gmail.com,support:niftylettuce@gmail.com` |
 
-> Please note that if you have multiple TXT record lines for `forward-email:` the service will only read the FIRST listed - please ensure you only have one line.
+> As of November 2, 2018 we now have added support for multi-line TXT records!  You can now have an infinite amount of forwarding emails setup – just make sure to not wrap over 255 characters in a single-line and start each line with `forward-email=`.  An example is provided below:
+
+| Name/Host/Alias    |  TTL | Record Type | Value/Answer/Destination                                                    |
+| ------------------ | :--: | ----------- | --------------------------------------------------------------------------- |
+| _@ or leave blank_ | 3600 | TXT         | `forward-email=hello:niftylettuce@gmail.com,support:niftylettuce@gmail.com` |
+| _@ or leave blank_ | 3600 | TXT         | `forward-email=help:niftylettuce@gmail.com,foo:niftylettuce@gmail.com`      |
+| _@ or leave blank_ | 3600 | TXT         | `forward-email=orders:niftylettuce@gmail.com,baz:niftylettuce@gmail.com`    |
+| _@ or leave blank_ | 3600 | TXT         | `forward-email=info:niftylettuce@gmail.com,beep:niftylettuce@gmail.com`     |
+| _@ or leave blank_ | 3600 | TXT         | `forward-email=errors:niftylettuce@gmail.com,boop:niftylettuce@gmail.com`   |
 
 **3.** Set (and customize) the following TXT record for SPF verification for your domain name (this will allow SPF verification to pass):
 
@@ -85,13 +93,17 @@
 
 | Name/Host/Alias    |  TTL | Record Type | Value/Answer/Destination                        |
 | ------------------ | :--: | ----------- | ----------------------------------------------- |
-| _@ or leave blank_ | 3600 | TXT         | `v=spf1 a mx include:spf.forwardemail.net ~all` |
+| _@ or leave blank_ | 3600 | TXT         | `v=spf1 a mx include:spf.forwardemail.net -all` |
 
-> If you already have a similar line with `v=spf1`, then you'll need to append `include:spf.forwardemail.net` right before any existing `include:host.com` records and before the `~all` in the same line (e.g. `v=spf1 a mx include:spf.forwardemail.net include:host.com ~all`).
+> If you already have a similar line with `v=spf1`, then you'll need to append `include:spf.forwardemail.net` right before any existing `include:host.com` records and before the `-all` in the same line (e.g. `v=spf1 a mx include:spf.forwardemail.net include:host.com -all`).
+>
+> Note that there is a difference between `-all` and `~all`.  The `-` indicates that the SPF check should FAIL if it does not match, and `~` indicates that the SPF check should SOFTFAIL.  We recommend to use the `-all` approach to prevent domain forgery.
 
 **4.** Send a test email to confirm it works.  Note that it might take some time for your DNS records to propagate.
 
-**5.** If you wish to "Send Mail As" from Gmail, then you will need to follow the steps under [Send Mail As Using Gmail](#send-mail-as-using-gmail) below.
+**5.** Add `no-reply@forwardemail.net` to your contacts.  In the event that someone is attempting to send you an email that has a strict DMARC record policy of `reject` or `quarantine`, we will rewrite the email's `From` header with a "friendly-from".  This means the `From` will look like `Sender's Name <no-reply@forwardemail.net>` and a `Reply-To` will be added with the original sender's `From` address.  In the event that there is already a `Reply-To` set, we will not overwrite it.
+
+**6.** If you wish to "Send Mail As" from Gmail, then you will need to follow the steps under [Send Mail As Using Gmail](#send-mail-as-using-gmail) below.
 
 ---
 
@@ -125,7 +137,8 @@ After you've followed the steps above in [How It Works](#how-it-works) you can f
 13. Click `Add Account` to proceed
 14. Open a new tab to [Gmail](https://gmail.com) and wait for your verification email to arrive (you will receive a verification code that confirms you are the owner of the email address you are attempting to "Send Mail As")
 15. Once it arrives, copy and paste the verification code at the prompt you received in the previous step
-16. Done!
+16. Once you've done that, go back to the email and click the link to "confirm the request". You need to do this step and the previous step for the email to be correctly configured.
+17. Done!
 
 
 ## Self-Hosted Requirements
@@ -271,7 +284,7 @@ yarn add forward-email
 
 ### CLI
 
-Use PM2 in combination with an `ecosystem.json` file and `authbind` (see the example [ecosystem.json](<>) file as an example.  Basically instead of `index` in your `ecosystem.json` file, you will use the globally installed command `forward-email` instead.
+Use PM2 in combination with an `ecosystem.json` file and `authbind` (see the example [ecosystem.json](ecosystem.json) file as an example.  Basically instead of `index` in your `ecosystem.json` file, you will use the globally installed command `forward-email` instead.
 
 ### API
 
@@ -321,7 +334,7 @@ Of course there's Haraka, sendmail, postfix, and dozens of other options, but th
 
 There's also solutions that use "serverless" technologies, such as through Amazon SES and Amazon Lambda, but again they are extremely confusing, time intensive, and no typical user I know would go to those lengths for setup (and instead would probably end up using a simpler alternative as I almost did; in exchange for lack of privacy).
 
-Furthermore, solutions like Amazon SES do not allow you to modify the `envelope` of the SMTP request, therefore you will need to do an ugly `Reply-To` field and rewrite the `To` as well to something like `to@noreply.com` (which is really not clean).
+Furthermore, solutions like Amazon SES do not allow you to modify the `envelope` of the SMTP request, therefore you will need to do an ugly `Reply-To` field and rewrite the `From` as well to something like `from@noreply.com` (which is really not clean).
 
 Then there's Gmail, which costs money now for custom domains (it used to be free).  They also don't allow you to easily set up email forwarding for custom domains anymore.
 
@@ -401,6 +414,8 @@ Per documentation and suggestions from Google at <https://support.google.com/a/a
 5. FQDN - validates that senders SMTP connections are from FQDN (meaning no IP addresses, they must have a valid domain name resolved)
 
 6. TXT - through checking if the email address the sender is trying to send to has a TXT DNS record with a valid email forwarding setup
+
+7. DMARC - we check if a DMARC record exists from the sender's FQDN, and if so, if it is `reject` or `quarantine` then we re-write the `From` of the email as a "friendly-from".  This means the `From` is set to `$originalName <no-reply@forwardemail.net>` (`$originalName` is the original From name, e.g. "John Doe" in "John Doe <mailto:john@domain.com>").  Furthermore we set a `Reply-To` (if one is not already set) of the original sender's from address.
 
 ### Can I "send mail as" with this
 
